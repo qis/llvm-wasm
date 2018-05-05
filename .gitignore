@@ -1,0 +1,10 @@
+# Hidden Files
+.*
+!.gitattributes
+!.gitignore
+
+# Build Files
+/build/
+
+# Sources
+/src/

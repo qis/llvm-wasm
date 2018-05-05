@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body>
+  <span id="container"></span>
+  <script>
+    const page_size = (64 * 1024);
+
+    const heap = {
+      data: null,
+      memory: null,
+      uint8: null,
+      uint32: null,
+      size: 16 * 1024 * 1024,
+      end: 0,
+      set: (memory) => {
+        heap.memory = memory;
+        heap.data = heap.memory.buffer
+        heap.uint8 = new Uint8Array(heap.data);
+        heap.uint32 = new Uint32Array(heap.data);
+        heap.size = heap.data.byteLength;
+      },
+      char: (ptr) => {
+        return String.fromCharCode(heap.uint8[ptr]);
+      },
+      string: (ptr, len = -1) => {
+        let str = "";
+        let end = heap.size;
+        if (len != -1) {
+          end = ptr + len;
+        }
+        for (let i = ptr; i < end && heap.uint8[i] != 0; ++i) {
+          str += heap.char(i);
+        }
+        return str;
+      },
+    };
+
+    heap.set(new WebAssembly.Memory({
+      initial: heap.size / page_size,
+      maximum: heap.size / page_size
+    }));
+
+    // https://github.com/jfbastien/musl/blob/wasm-prototype-1/arch/wasm32/wasm.js
+    const syscalls = {
+      /* brk */ 45: (addr) => {
+        if (addr > heap.size) {
+          heap.memory.grow(Math.ceil((addr - heap.size) / page_size));
+          heap.set(heap.memory);
+        }
+        if (addr != 0) {
+          heap.end = addr;
+        }
+        return heap.end;
+      },
+      /* writev */ 146: (fd, iov, iovcnt) => {
+        if (fd != 1) {
+          console.log("writev:", fd, iov, iovcnt);
+          return -1;
+        }
+        let iov32 = iov / 4;
+        let ret = 0;
+        let str = "";
+        for (let i = 0; i < iovcnt; i++) {
+          let ptr = heap.uint32[iov32];
+          iov32++;
+          let len = heap.uint32[iov32];
+          iov32++;
+          if (len > 0) {
+            str += heap.string(ptr, len);
+            ret += len;
+          }
+        }
+        console.log("writev:", fd, iov, iovcnt, str);
+        return ret;
+      },
+      /* set_thread_area */ 243: () => { return 0; },
+      /* set_tid_address */ 258: () => { return 0; },
+    };
+
+    function syscall(n, a, b, c, d, e, f) {
+      if (n in syscalls) {
+        return syscalls[n](a, b, c, d, e, f);
+      }
+      console.log("syscall:", n);
+      return -1;
+    }
+    async function main() {
+      const init = await WebAssembly.instantiateStreaming(fetch("main.wasm"), {
+        env: {
+          memory: heap.memory,
+          __syscall: syscall,
+          __syscall0: syscall,
+          __syscall1: syscall,
+          __syscall2: syscall,
+          __syscall3: syscall,
+          __syscall4: syscall,
+          __syscall5: syscall,
+          __syscall6: syscall,
+          __syscall_cp: syscall,
+        }
+      });
+      if (init.instance.exports.memory) {
+        heap.set(init.instance.exports.memory);
+        heap.end = init.instance.exports.__heap_base;
+      }
+      if (init.instance.exports.start instanceof Function) {
+        console.log(init.instance.exports);
+        const result = init.instance.exports.start();
+        console.log("result:", result);
+        //document.getElementById("container").innerText = "Result: \"" + result + "\"";
+      }
+    }
+    main();
+  </script>
+</body>
+</html>
