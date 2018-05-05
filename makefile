@@ -1,10 +1,12 @@
 MAKEFLAGS += --no-print-directory
 
-SVN	:=trunk
-REV	:={2018-05-03}
-URL	:=https://llvm.org/svn/llvm-project
-PREFIX	:=/opt/llvm
-JOBS	:=4
+SVN	?=trunk
+REV	?={2018-05-03}
+URL	?=https://llvm.org/svn/llvm-project
+PREFIX	?=/opt/llvm
+SHARED	?=OFF
+STATIC	?=ON
+JOBS	?=4
 
 all:
 	@if [ ! -d "$(PREFIX)" ]; then \
@@ -27,6 +29,9 @@ all:
 	fi
 	@if [ ! -e "$(PREFIX)/wasm/lib/libc++.a" ]; then \
 	  make libcxx; \
+	fi
+	@if [ "`stat -c "%A" $(PREFIX)/bin`" != "drwxr-xr-x" ]; then \
+	  make permissions; \
 	fi
 
 src:
@@ -55,14 +60,14 @@ llvm: build src
 	    -DLLVM_ENABLE_PEDANTIC=OFF \
 	    -DCLANG_DEFAULT_CXX_STDLIB="libc++" \
 	    -DCLANG_INCLUDE_TESTS=OFF \
-	    -DLIBCXX_ENABLE_SHARED=OFF \
-	    -DLIBCXX_ENABLE_STATIC=ON \
+	    -DLIBCXX_ENABLE_SHARED=$(SHARED) \
+	    -DLIBCXX_ENABLE_STATIC=$(STATIC) \
 	    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
 	    -DLIBCXX_ENABLE_FILESYSTEM=ON \
 	    -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=ON \
 	    -DLIBCXX_INSTALL_EXPERIMENTAL_LIBRARY=ON \
-	    -DLIBCXXABI_ENABLE_SHARED=OFF \
-	    -DLIBCXXABI_ENABLE_STATIC=ON \
+	    -DLIBCXXABI_ENABLE_SHARED=$(SHARED) \
+	    -DLIBCXXABI_ENABLE_STATIC=$(STATIC) \
 	    ../../src && \
 	  cmake --build . --target install -- -j$(JOBS)
 
@@ -168,6 +173,9 @@ libcxx: build src
 	    ../../src/projects/libcxx && \
 	  cmake --build . --target install -- -j$(JOBS)
 
+permissions:
+	find $(PREFIX) -type d -exec chmod 0755 '{}' ';'
+
 test: test/main.wasm
 
 test/main.wasm: test/main.cpp
@@ -176,4 +184,4 @@ test/main.wasm: test/main.cpp
 clean:
 	rm -f test/main.wasm
 
-.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx test test/main.wasm clean
+.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions test test/main.wasm clean
