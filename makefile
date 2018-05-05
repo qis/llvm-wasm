@@ -1,13 +1,19 @@
 MAKEFLAGS += --no-print-directory
 
-SVN	?=trunk
-REV	?={2018-05-03}
-URL	?=https://llvm.org/svn/llvm-project
-PREFIX	?=/opt/llvm
-SHARED	?=OFF
-STATIC	?=ON
-JOBS	?=4
+REV	?=
+TAG	?= trunk
+URL	?= https://llvm.org/svn/llvm-project
+PREFIX	?= /opt/llvm
+SHARED	?= OFF
+STATIC	?= ON
+WASM	?= ON
+JOBS	?= 4
 
+ifeq ($(REV),)
+REV	!= svn info -r HEAD $(URL)/llvm/$(TAG) | grep Revision: | cut -c11-
+endif
+
+ifeq ($(WASM),ON)
 all:
 	@if [ ! -d "$(PREFIX)" ]; then \
 	  make llvm; \
@@ -33,16 +39,22 @@ all:
 	@if [ "`stat -c "%A" $(PREFIX)/bin`" != "drwxr-xr-x" ]; then \
 	  make permissions; \
 	fi
+else
+all:
+	@if [ ! -d "$(PREFIX)" ]; then \
+	  make llvm; \
+	fi
+endif
 
 src:
-	svn co -r "$(REV)" $(URL)/llvm/$(SVN) $@
-	svn co -r "$(REV)" $(URL)/cfe/$(SVN) $@/tools/clang
-	svn co -r "$(REV)" $(URL)/clang-tools-extra/$(SVN) $@/tools/clang/tools/extra
-	svn co -r "$(REV)" $(URL)/libcxx/$(SVN) $@/projects/libcxx
-	svn co -r "$(REV)" $(URL)/libcxxabi/$(SVN) $@/projects/libcxxabi
-	svn co -r "$(REV)" $(URL)/compiler-rt/$(SVN) $@/projects/compiler-rt
-	svn co -r "$(REV)" $(URL)/libunwind/$(SVN) $@/projects/libunwind
-	svn co -r "$(REV)" $(URL)/lld/$(SVN) $@/projects/lld
+	svn co -r "$(REV)" $(URL)/llvm/$(TAG) $@
+	svn co -r "$(REV)" $(URL)/cfe/$(TAG) $@/tools/clang
+	svn co -r "$(REV)" $(URL)/clang-tools-extra/$(TAG) $@/tools/clang/tools/extra
+	svn co -r "$(REV)" $(URL)/libcxx/$(TAG) $@/projects/libcxx
+	svn co -r "$(REV)" $(URL)/libcxxabi/$(TAG) $@/projects/libcxxabi
+	svn co -r "$(REV)" $(URL)/compiler-rt/$(TAG) $@/projects/compiler-rt
+	svn co -r "$(REV)" $(URL)/libunwind/$(TAG) $@/projects/libunwind
+	svn co -r "$(REV)" $(URL)/lld/$(TAG) $@/projects/lld
 	git clone -b wasm-prototype-1 https://github.com/jfbastien/musl $@/projects/musl
 
 build:
