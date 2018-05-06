@@ -88,7 +88,8 @@
       return -1;
     }
     async function main() {
-      const init = await WebAssembly.instantiateStreaming(fetch("./main.wasm"), {
+      const wasm = await fetch("./main.wasm");
+      const init = await WebAssembly.instantiate(await wasm.arrayBuffer(), {
         env: {
           memory: heap.memory,
           __syscall: syscall,
