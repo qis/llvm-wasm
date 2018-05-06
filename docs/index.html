@@ -109,8 +109,8 @@
       }
       if (init.instance.exports.main instanceof Function) {
         const result = init.instance.exports.main();
-        console.log("result:", result);
         document.getElementById("container").innerText = "Result: \"" + result + "\"";
+        console.log("result:", result);
       }
     }
     main();

@@ -195,7 +195,7 @@ docs: docs/main.wasm
 	node docs/main.js docs/main.wasm
 
 docs/main.wasm: all docs/main.cpp
-	$(PREFIX)/bin/wasm-clang++ -std=c++2a -O0 -o $@ docs/main.cpp
+	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -o $@ docs/main.cpp
 
 clean:
 	rm -f docs/main.wasm
