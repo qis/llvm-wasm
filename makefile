@@ -191,8 +191,11 @@ permissions:
 
 docs: docs/main.bin
 
-docs/main.bin: docs/main.cpp
-	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -Wl,--allow-undefined-file=docs/wasm.syms -o $@ docs/main.cpp
+docs/main.o: docs/main.cpp
+	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -c -o $@ docs/main.cpp
+
+docs/main.bin: docs/main.syms docs/main.o
+	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Wl,--allow-undefined-file=docs/main.syms -o $@ docs/main.o
 
 clean:
 	rm -f docs/main.wasm

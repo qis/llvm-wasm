@@ -2,10 +2,17 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <script>
+    let data = fetch("main.bin");
+  </script>
 </head>
 <body>
-  <span id="container"></span>
+  <span id="container" style="font-family: monospace;"></span>
   <script>
+    function Exit(ec) {
+      this.ec = ec;
+    }
+
     const page_size = (64 * 1024);
 
     const heap = {
@@ -35,7 +42,7 @@
           }
         }
         return str;
-      },
+      }
     };
 
     heap.set(new WebAssembly.Memory({
@@ -43,7 +50,10 @@
       maximum: heap.size / page_size
     }));
 
-    const syscalls = {
+    const sys = {
+      /* restart_syscall */ 1: () => {
+        throw new Error("rs");
+      },
       /* brk */ 45: (addr) => {
         if (addr > heap.size) {
           heap.memory.grow(Math.ceil((addr - heap.size) / page_size));
@@ -58,9 +68,9 @@
         return -1;
       },
       /* writev */ 146: (fd, iov, iovcnt) => {
-        let iov32 = iov / 4;
         let ret = 0;
         let str = "";
+        let iov32 = iov / 4;
         for (let i = 0; i < iovcnt; i++) {
           let ptr = heap.uint32[iov32++];
           let len = heap.uint32[iov32++];
@@ -69,52 +79,64 @@
             ret += len;
           }
         }
-        (fd === 2 ? console.warn : console.log)(str[str.length - 1] === '\n' ? str.slice(0, str.length - 1) : str);
+        if (str.length > 0 && str[str.length - 1] === '\n') {
+          str = str.slice(0, str.length - 1);
+        }
+        if (fd == 2) {
+          console.log("%c" + str, 'color:#d33');
+        } else {
+          console.log(str);
+        }
         return ret;
       },
-      /* set_thread_area */ 243: () => {
-        return 0;
-      },
-      /* set_tid_address */ 258: () => {
-        return 0;
-      },
+      /* exit_group */ 252: (ec) => {
+        throw new Exit(ec);
+      }
     };
 
-    function syscall(n, a, b, c, d, e, f) {
-      if (n in syscalls) {
-        return syscalls[n](a, b, c, d, e, f);
+    const syscall = (n, a, b, c, d, e, f) => {
+      if (n in sys) {
+        return sys[n](a, b, c, d, e, f);
       }
-      console.log("syscall:", n);
+      console.log("syscall:", n, a, b, c, d, e, f);
       return -1;
-    }
-    
+    };
+
     async function main() {
-      const wasm = await fetch("main.bin");
-      const init = await WebAssembly.instantiate(await wasm.arrayBuffer(), {
-        env: {
-          memory: heap.memory,
-          __syscall: syscall,
-          __syscall0: syscall,
-          __syscall1: syscall,
-          __syscall2: syscall,
-          __syscall3: syscall,
-          __syscall4: syscall,
-          __syscall5: syscall,
-          __syscall6: syscall,
-          __syscall_cp: syscall,
-          test: () => {
-            return 3;
-          },
-        }
-      });
-      if (init.instance.exports.memory) {
+      try {
+        let wasm = await data;
+        let init = await WebAssembly.instantiate(await wasm.arrayBuffer(), {
+          env: {
+            memory: heap.memory,
+            __syscall: syscall,
+            __syscall0: syscall,
+            __syscall1: syscall,
+            __syscall2: syscall,
+            __syscall3: syscall,
+            __syscall4: syscall,
+            __syscall5: syscall,
+            __syscall6: syscall,
+            __syscall_cp: syscall,
+            test: () => {
+              return 2;
+            },
+            "_ZN3ice4testEv": () => {
+              return 3;
+            }
+          }
+        });
+        delete wasm; wasm = null;
+        delete data; data = null;
         heap.set(init.instance.exports.memory);
         heap.end = init.instance.exports.__heap_base;
+        init.instance.exports._start();
       }
-      if (init.instance.exports.main instanceof Function) {
-        const result = init.instance.exports.main();
-        document.getElementById("container").innerText = "Result: \"" + result + "\"";
-        console.log("result:", result);
+      catch (e) {
+        if (e instanceof Exit) {
+          console.log("exit:", e.ec);
+        } else {
+          throw e;
+        }
       }
     }
     main();

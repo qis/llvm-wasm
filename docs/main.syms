@@ -1,3 +1,4 @@
+# syscalls
 __syscall
 __syscall0
 __syscall1
@@ -7,4 +8,7 @@ __syscall4
 __syscall5
 __syscall6
 __syscall_cp
+
+# llvm-nm docs/main.o
 test
+_ZN3ice4testEv

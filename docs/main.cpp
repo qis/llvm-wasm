@@ -1,10 +1,15 @@
-#include "wasm.h"
-#include <iostream>
+#include <cstdio>
 
-#ifdef __wasm__
-__attribute__((visibility("default")))
-#endif
+extern "C" int test();
+
+namespace ice {
+
+int test();
+
+}  // namespace ice
 
 int main() {
-  std::printf("test: %d\n", test());
+  std::printf("test: %d\nice::test: %d\n", test(), ice::test());
+  std::fprintf(stderr, "test: %d\nice::test: %d\n", test(), ice::test());
+  return 1;
 }
