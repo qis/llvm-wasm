@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <script>
-    let data = fetch("main.bin");
+    let main = fetch("main.bin");
   </script>
 </head>
 <body>
@@ -11,24 +11,6 @@
   <script>
     function Exit(ec) {
       this.ec = ec;
-    }
-
-    function stdout(str, style) {
-      let span = document.createElement("span");
-      let log = document.getElementById("log");
-      if (typeof style === "string") {
-        console.log("%c" + str, style);
-        span.style = style;
-      } else {
-        console.log(str);
-      }
-      span.innerText = str;
-      log.appendChild(span);
-      log.appendChild(document.createElement("br"));
-    }
-
-    function stderr(str) {
-      stdout(str, "color: #d33;");
     }
 
     const page_size = (64 * 1024);
@@ -67,6 +49,33 @@
       initial: heap.size / page_size,
       maximum: heap.size / page_size
     }));
+
+    function stdout(str, style) {
+      let span = document.createElement("span");
+      let log = document.getElementById("log");
+      if (typeof style === "string") {
+        console.log("%c" + str, style);
+        span.style = style;
+      } else {
+        console.log(str);
+      }
+      span.innerText = str;
+      log.appendChild(span);
+      log.appendChild(document.createElement("br"));
+    }
+
+    function stderr(str) {
+      stdout(str, "color: #d33;");
+    }
+
+    const env = {
+      /* int test() */ test: () => {
+        return 1;
+      },
+      /* int ice::test() */ _ZN3ice4testEv: () => {
+        return 2;
+      }
+    };
 
     const sys = {
       /* restart_syscall */ 1: () => {
@@ -108,39 +117,26 @@
       }
     };
 
-    const syscall = (n, a, b, c, d, e, f) => {
+    function sc(n, a, b, c, d, e, f) {
       if (n in sys) {
         return sys[n](a, b, c, d, e, f);
       }
       console.warn("syscall:", n, a, b, c, d, e, f);
       return -1;
-    };
+    }
 
-    async function main() {
+    let n = [ "", 0, 1, 2, 3, 4, 5, 6, "_cp" ];
+    for (let i in n) {
+      env["__syscall" + n[i]] = sc;
+    }
+
+    env.memory = heap.memory;
+
+    (async () => {
       try {
-        let wasm = await data;
-        let init = await WebAssembly.instantiate(await wasm.arrayBuffer(), {
-          env: {
-            memory: heap.memory,
-            __syscall: syscall,
-            __syscall0: syscall,
-            __syscall1: syscall,
-            __syscall2: syscall,
-            __syscall3: syscall,
-            __syscall4: syscall,
-            __syscall5: syscall,
-            __syscall6: syscall,
-            __syscall_cp: syscall,
-            test: () => {
-              return 2;
-            },
-            "_ZN3ice4testEv": () => {
-              return 3;
-            }
-          }
-        });
-        delete wasm; wasm = null;
-        delete data; data = null;
+        let init = await WebAssembly.instantiate(await (await main).arrayBuffer(), { env: env });
+        delete main;
+        main = null;
         heap.set(init.instance.exports.memory);
         heap.end = init.instance.exports.__heap_base;
         init.instance.exports._start();
@@ -152,8 +148,7 @@
           throw e;
         }
       }
-    }
-    main();
+    })();
   </script>
 </body>
 </html>
