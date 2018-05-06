@@ -88,7 +88,7 @@
       return -1;
     }
     async function main() {
-      const wasm = await fetch("./main.wasm");
+      const wasm = await fetch("main.bin");
       const init = await WebAssembly.instantiate(await wasm.arrayBuffer(), {
         env: {
           memory: heap.memory,

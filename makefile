@@ -191,13 +191,13 @@ libcxx: build src
 permissions:
 	find $(PREFIX) -type d -exec chmod 0755 '{}' ';'
 
-docs: docs/main.wasm
-	node docs/main.js docs/main.wasm
+docs: docs/main.bin
+	node docs/main.js docs/main.bin
 
-docs/main.wasm: all docs/main.cpp
+docs/main.bin: all docs/main.cpp
 	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -o $@ docs/main.cpp
 
 clean:
 	rm -f docs/main.wasm
 
-.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions docs docs/main.wasm clean
+.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions docs docs/main.bin clean
