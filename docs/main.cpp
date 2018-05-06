@@ -9,7 +9,6 @@ int test();
 }  // namespace ice
 
 int main() {
-  std::printf("test: %d\nice::test: %d\n", test(), ice::test());
-  std::fprintf(stderr, "test: %d\nice::test: %d\n", test(), ice::test());
-  return 1;
+  std::printf("test: %d\n", test());
+  std::fprintf(stderr, "ice::test: %d\n", ice::test());
 }
