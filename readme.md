@@ -1,20 +1,24 @@
 # LLVM
-Install dependencies.
+Automatically installs LLVM with optional [libcxx][libcxx] WebAssembly support using [jfbastien/musl][musl] on Linux.
+
+## Dependencies
+Install dependencies in [WSL][wsl].
 
 ```sh
 apt install build-essential binutils-dev ninja-build nasm git subversion libedit-dev
 ```
 
+## Usage
 Download this repository.
 
 ```sh
 git clone https://github.com/qis/llvm && cd llvm
 ```
 
-Install LLVM with **one** of the following commands.
+Install LLVM with **one** of the following commands. (WebAssembly is only supported in LLVM trunk.)
 
 ```sh
-# Release (will not build and install WebAssembly support).
+# Release (disables WebAssembly support).
 # make TAG=tags/RELEASE_600/final PREFIX=/opt/llvm-6.0.0 SHARED=ON STATIC=OFF WASM=OFF JOBS=4
 
 # Trunk revision.
@@ -33,3 +37,11 @@ cat > /etc/ld.so.conf.d/llvm.conf <<EOF
 EOF
 ldconfig
 ```
+
+## Example
+A precompiled WebAssembly binary can seen in action [here][example].
+
+[libcxx]: https://libcxx.llvm.org/
+[musl]: https://github.com/jfbastien/musl/
+[wsl]: https://de.wikipedia.org/wiki/Windows_Subsystem_for_Linux
+[exmaple]: https://qis.github.io/llvm/
