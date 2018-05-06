@@ -44,4 +44,4 @@ A precompiled WebAssembly binary can seen in action [here][example].
 [libcxx]: https://libcxx.llvm.org/
 [musl]: https://github.com/jfbastien/musl/
 [wsl]: https://de.wikipedia.org/wiki/Windows_Subsystem_for_Linux
-[exmaple]: https://qis.github.io/llvm/
+[example]: https://qis.github.io/llvm/
