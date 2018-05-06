@@ -13,7 +13,7 @@
       this.ec = ec;
     }
 
-    function print(str, style) {
+    function stdout(str, style) {
       let span = document.createElement("span");
       let log = document.getElementById("log");
       if (typeof style === "string") {
@@ -25,6 +25,10 @@
       span.innerText = str;
       log.appendChild(span);
       log.appendChild(document.createElement("br"));
+    }
+
+    function stderr(str) {
+      stdout(str, "color: #d33;");
     }
 
     const page_size = (64 * 1024);
@@ -96,7 +100,7 @@
         if (str.length > 0 && str[str.length - 1] === '\n') {
           str = str.slice(0, str.length - 1);
         }
-        print(str, fd === 2 ? "color: #d33;" : null);
+        (fd === 2 ? stderr : stdout)(str);
         return ret;
       },
       /* exit_group */ 252: (ec) => {
@@ -108,7 +112,7 @@
       if (n in sys) {
         return sys[n](a, b, c, d, e, f);
       }
-      console.log("syscall:", n, a, b, c, d, e, f);
+      console.warn("syscall:", n, a, b, c, d, e, f);
       return -1;
     };
 
@@ -143,7 +147,7 @@
       }
       catch (e) {
         if (e instanceof Exit) {
-          print("exit: " + e.ec, "color: #888; font-weight: bold;");
+          stdout("exit: " + e.ec, "color: #888; font-weight: bold;");
         } else {
           throw e;
         }
