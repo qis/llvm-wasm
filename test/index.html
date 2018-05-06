@@ -106,11 +106,10 @@
         heap.set(init.instance.exports.memory);
         heap.end = init.instance.exports.__heap_base;
       }
-      if (init.instance.exports.start instanceof Function) {
-        console.log(init.instance.exports);
-        const result = init.instance.exports.start();
+      if (init.instance.exports.main instanceof Function) {
+        const result = init.instance.exports.main();
         console.log("result:", result);
-        //document.getElementById("container").innerText = "Result: \"" + result + "\"";
+        document.getElementById("container").innerText = "Result: \"" + result + "\"";
       }
     }
     main();
