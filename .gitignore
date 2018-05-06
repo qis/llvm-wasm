@@ -5,6 +5,7 @@
 
 # Build Files
 /docs/favicon.ico
+/docs/main.o
 /build/
 
 # Sources
