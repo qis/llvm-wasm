@@ -1,12 +1,10 @@
-#include <sstream>
-#include <cstdio>
+#include "wasm.h"
+#include <iostream>
 
 #ifdef __wasm__
 __attribute__((visibility("default")))
 #endif
 
 int main() {
-  std::ostringstream oss;
-  oss << "test" << std::endl;
-  std::puts(oss.str().data());
+  std::printf("test: %d\n", test());
 }

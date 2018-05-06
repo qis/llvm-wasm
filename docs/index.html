@@ -27,12 +27,12 @@
       },
       string: (ptr, len = -1) => {
         let str = "";
-        let end = heap.size;
-        if (len != -1) {
-          end = ptr + len;
-        }
-        for (let i = ptr; i < end && heap.uint8[i] != 0; ++i) {
-          str += heap.char(i);
+        let end = len > -1 ? ptr + len : heap.size;
+        for (let i = ptr; i < end && heap.uint8[i] !== 0; ++i) {
+          let c = heap.char(i);
+          if (c !== '\r') {
+            str += c;
+          }
         }
         return str;
       },
@@ -43,7 +43,6 @@
       maximum: heap.size / page_size
     }));
 
-    // https://github.com/jfbastien/musl/blob/wasm-prototype-1/arch/wasm32/wasm.js
     const syscalls = {
       /* brk */ 45: (addr) => {
         if (addr > heap.size) {
@@ -55,29 +54,30 @@
         }
         return heap.end;
       },
+      /* ioctl */ 54: () => {
+        return -1;
+      },
       /* writev */ 146: (fd, iov, iovcnt) => {
-        if (fd != 1) {
-          console.log("writev:", fd, iov, iovcnt);
-          return -1;
-        }
         let iov32 = iov / 4;
         let ret = 0;
         let str = "";
         for (let i = 0; i < iovcnt; i++) {
-          let ptr = heap.uint32[iov32];
-          iov32++;
-          let len = heap.uint32[iov32];
-          iov32++;
+          let ptr = heap.uint32[iov32++];
+          let len = heap.uint32[iov32++];
           if (len > 0) {
             str += heap.string(ptr, len);
             ret += len;
           }
         }
-        console.log("writev:", fd, iov, iovcnt, str);
+        (fd === 2 ? console.warn : console.log)(str[str.length - 1] === '\n' ? str.slice(0, str.length - 1) : str);
         return ret;
       },
-      /* set_thread_area */ 243: () => { return 0; },
-      /* set_tid_address */ 258: () => { return 0; },
+      /* set_thread_area */ 243: () => {
+        return 0;
+      },
+      /* set_tid_address */ 258: () => {
+        return 0;
+      },
     };
 
     function syscall(n, a, b, c, d, e, f) {
@@ -87,6 +87,7 @@
       console.log("syscall:", n);
       return -1;
     }
+    
     async function main() {
       const wasm = await fetch("main.bin");
       const init = await WebAssembly.instantiate(await wasm.arrayBuffer(), {
@@ -101,6 +102,9 @@
           __syscall5: syscall,
           __syscall6: syscall,
           __syscall_cp: syscall,
+          test: () => {
+            return 3;
+          },
         }
       });
       if (init.instance.exports.memory) {

@@ -179,9 +179,7 @@ libcxx: build src
 	    -DLIBCXX_INCLUDE_DOCS=OFF \
 	    -DLIBCXX_USE_COMPILER_RT=ON \
 	    -DLIBCXX_ENABLE_EXCEPTIONS=OFF \
-	    -DLIBCXX_ENABLE_RTTI=ON \
 	    -DLIBCXX_ENABLE_STDIN=OFF \
-	    -DLIBCXX_ENABLE_STDOUT=ON \
 	    -DLIBCXX_ENABLE_THREADS=OFF \
 	    -DLIBCXX_ENABLE_MONOTONIC_CLOCK=OFF \
 	    -DLIBCXX_HAS_MUSL_LIBC=ON \
@@ -192,10 +190,9 @@ permissions:
 	find $(PREFIX) -type d -exec chmod 0755 '{}' ';'
 
 docs: docs/main.bin
-	node docs/main.js docs/main.bin
 
-docs/main.bin: all docs/main.cpp
-	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -o $@ docs/main.cpp
+docs/main.bin: docs/main.cpp
+	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -Wl,--allow-undefined-file=docs/wasm.syms -o $@ docs/main.cpp
 
 clean:
 	rm -f docs/main.wasm
