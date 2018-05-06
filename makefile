@@ -56,6 +56,7 @@ src:
 	svn co -r "$(REV)" $(URL)/libunwind/$(TAG) $@/projects/libunwind
 	svn co -r "$(REV)" $(URL)/lld/$(TAG) $@/projects/lld
 	git clone -b wasm-prototype-1 https://github.com/jfbastien/musl $@/projects/musl
+	cd $@/projects/musl && git apply < $(PWD)/musl.patch
 
 build:
 	mkdir $@
@@ -70,6 +71,7 @@ llvm: build src
 	    -DLLVM_INCLUDE_TESTS=OFF \
 	    -DLLVM_ENABLE_WARNINGS=OFF \
 	    -DLLVM_ENABLE_PEDANTIC=OFF \
+	    -DCLANG_DEFAULT_RTLIB="compiler-rt" \
 	    -DCLANG_DEFAULT_CXX_STDLIB="libc++" \
 	    -DCLANG_INCLUDE_TESTS=OFF \
 	    -DLIBCXX_ENABLE_SHARED=$(SHARED) \
@@ -99,14 +101,15 @@ wasm.syms:
 
 musl: build src
 	rm -rf build/musl; mkdir build/musl && cd build/musl && \
-	  CROSS_COMPILE="$(PREFIX)/bin/wasm-" CFLAGS="-Wno-everything -I/usr/include" \
-	  ../../src/projects/musl/configure --prefix=$(PREFIX)/wasm --disable-shared && \
+	  CROSS_COMPILE="$(PREFIX)/bin/wasm-" CFLAGS="-Wno-everything" \
+	  ../../src/projects/musl/configure --prefix=$(PREFIX)/wasm \
+	    --disable-shared --enable-optimize=size && \
 	  make all install -j$(JOBS)
 
 compiler-rt: build src
 	rm -rf build/compiler-rt; mkdir build/compiler-rt && cd build/compiler-rt && \
 	  LDFLAGS="-lc -nodefaultlibs -nostdlib++ -fuse-ld=lld" \
-	  cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
+	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
 	    -DCMAKE_CXX_COMPILER="$(PREFIX)/bin/wasm-clang++" \
 	    -DLLVM_CONFIG_PATH="$(PREFIX)/bin/llvm-config" \
@@ -130,7 +133,7 @@ compiler-rt: build src
 libcxxabi: build src
 	rm -rf build/libcxxabi; mkdir build/libcxxabi && cd build/libcxxabi && \
 	  CXXFLAGS="-I $(PWD)/src/projects/libunwind/include" LDFLAGS="-nostdlib++ -fuse-ld=lld" \
-	  cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
+	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
 	    -DCMAKE_CXX_COMPILER="$(PREFIX)/bin/wasm-clang++" \
 	    -DLLVM_CONFIG_PATH="$(PREFIX)/bin/llvm-config" \
@@ -156,7 +159,7 @@ libcxxabi: build src
 libcxx: build src
 	rm -rf build/libcxx; mkdir build/libcxx && cd build/libcxx && \
 	  LDFLAGS="-lc -nodefaultlibs -fuse-ld=lld" \
-	  cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
+	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
 	    -DCMAKE_CXX_COMPILER="$(PREFIX)/bin/wasm-clang++" \
 	    -DLLVM_CONFIG_PATH="$(PREFIX)/bin/llvm-config" \
@@ -189,9 +192,10 @@ permissions:
 	find $(PREFIX) -type d -exec chmod 0755 '{}' ';'
 
 test: test/main.wasm
+	node test/main.js test/main.wasm
 
-test/main.wasm: test/main.cpp
-	$(PREFIX)/bin/wasm-clang++ -std=c++2a -O0 -o $@ $<
+test/main.wasm: all test/main.cpp
+	$(PREFIX)/bin/wasm-clang++ -std=c++2a -O0 -o $@ test/main.cpp
 
 clean:
 	rm -f test/main.wasm

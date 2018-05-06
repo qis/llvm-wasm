@@ -4,6 +4,7 @@
 !.gitignore
 
 # Build Files
+/test/favicon.ico
 /build/
 
 # Sources

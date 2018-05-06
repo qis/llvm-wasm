@@ -1,0 +1,85 @@
+diff --git i/crt/crt1.c w/crt/crt1.c
+index af02af9..924e4e1 100644
+--- i/crt/crt1.c
++++ w/crt/crt1.c
+@@ -4,15 +4,24 @@
+ 
+ #include "crt_arch.h"
+ 
++#ifdef __wasm__
++int main(void);
++_Noreturn int __libc_start_main(int (*)(void), int, char **);
++#else
+ int main();
+ void _init() __attribute__((weak));
+ void _fini() __attribute__((weak));
+ _Noreturn int __libc_start_main(int (*)(), int, char **,
+ 	void (*)(), void(*)(), void(*)());
++#endif
+ 
+ void _start_c(long *p)
+ {
+ 	int argc = p[0];
+ 	char **argv = (void *)(p+1);
++#ifdef __wasm__
++	__libc_start_main(main, argc, argv);
++#else
+ 	__libc_start_main(main, argc, argv, _init, _fini, 0);
++#endif
+ }
+diff --git i/src/env/__libc_start_main.c w/src/env/__libc_start_main.c
+index b5fd353..473a246 100644
+--- i/src/env/__libc_start_main.c
++++ w/src/env/__libc_start_main.c
+@@ -65,6 +65,11 @@ static void libc_start_init(void)
+ 
+ weak_alias(libc_start_init, __libc_start_init);
+ 
++#ifdef __wasm__
++int main(void);
++#define main _unused_main
++#endif
++
+ int __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv)
+ {
+ 	char **envp = argv+argc+1;
+@@ -73,6 +78,11 @@ int __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv)
+ 	__libc_start_init();
+ 
+ 	/* Pass control to the application */
++#ifdef __wasm__
++#undef main
++	exit(main());
++#else
+ 	exit(main(argc, argv, envp));
++#endif
+ 	return 0;
+ }
+diff --git i/src/stdlib/strtod.c w/src/stdlib/strtod.c
+index 461dcf8..cf1440d 100644
+--- i/src/stdlib/strtod.c
++++ w/src/stdlib/strtod.c
+@@ -32,9 +32,23 @@ long double strtold(const char *restrict s, char **restrict p)
+ 	return strtox(s, p, 2);
+ }
+ 
++#ifdef __wasm__
++float strtof_l(const char *nptr, char **endptr, locale_t) {
++  return strtof(nptr, endptr);
++}
++
++double strtod_l(const char *nptr, char **endptr, locale_t) {
++  return strtod(nptr, endptr);
++}
++
++long double strtold_l(const char *nptr, char **endptr, locale_t) {
++  return strtold(nptr, endptr);
++}
++#else
+ weak_alias(strtof, strtof_l);
+ weak_alias(strtod, strtod_l);
+ weak_alias(strtold, strtold_l);
++#endif
+ weak_alias(strtof, __strtof_l);
+ weak_alias(strtod, __strtod_l);
+ weak_alias(strtold, __strtold_l);
