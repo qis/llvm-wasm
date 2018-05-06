@@ -69,6 +69,7 @@
     }
 
     const env = {
+      memory: heap.memory,
       /* int test() */ test: () => {
         return 1;
       },
@@ -129,8 +130,6 @@
     for (let i in n) {
       env["__syscall" + n[i]] = sc;
     }
-
-    env.memory = heap.memory;
 
     (async () => {
       try {
