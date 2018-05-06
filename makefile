@@ -198,6 +198,6 @@ docs/main.bin: docs/main.syms docs/main.o
 	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Wl,--allow-undefined-file=docs/main.syms -o $@ docs/main.o
 
 clean:
-	rm -f docs/main.wasm
+	rm -f docs/main.o
 
-.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions docs docs/main.bin clean
+.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions docs clean
