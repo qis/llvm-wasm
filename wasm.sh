@@ -35,9 +35,9 @@ case "${name}" in
   ;;
 "c++" | "clang++")
   if [ ${nostdlibxx} -eq 0 ]; then
-    args="-isystem ${base}/wasm/include/c++/v1 ${args} -fno-exceptions"
+    args="-isystem ${base}/wasm/include/c++/v1 ${args}"
   fi
-  ${base}/bin/clang++ -stdlib=libc++ -nostdinc++ ${args}
+  ${base}/bin/clang++ -stdlib=libc++ -nostdinc++ -fno-exceptions ${args}
   ;;
 *) echo "unknown ${self} symlink: ${name}"; exit 1 ;;
 esac

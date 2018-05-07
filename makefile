@@ -159,7 +159,7 @@ libcxxabi: build src
 libcxx: build src
 	rm -rf build/libcxx; mkdir build/libcxx && cd build/libcxx && \
 	  LDFLAGS="-lc -nodefaultlibs -fuse-ld=lld" \
-	  cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
+	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
 	    -DCMAKE_CXX_COMPILER="$(PREFIX)/bin/wasm-clang++" \
 	    -DLLVM_CONFIG_PATH="$(PREFIX)/bin/llvm-config" \
