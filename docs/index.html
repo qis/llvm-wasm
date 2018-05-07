@@ -138,6 +138,7 @@
         main = null;
         heap.set(init.instance.exports.memory);
         heap.end = init.instance.exports.__heap_base;
+	console.log(init.instance.exports.__wasm_call_ctors);
         init.instance.exports._start();
       }
       catch (e) {
