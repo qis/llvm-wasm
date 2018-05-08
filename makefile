@@ -18,6 +18,9 @@ all:
 	@if [ ! -d "$(PREFIX)" ]; then \
 	  make llvm; \
 	fi
+	@if [ ! -e "$(PREFIX)/include/c++/v1/filesystem" ]; then \
+	  make filesystem; \
+	fi
 	@if [ ! -e "$(PREFIX)/bin/wasm" ]; then \
 	  make wasm; \
 	fi
@@ -91,6 +94,13 @@ llvm: build src
 	    -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
 	    ../../src && \
 	  cmake --build . --target install -- -j$(JOBS)
+
+filesystem:
+	echo "#pragma once" >> $(PREFIX)/include/c++/v1/filesystem
+	echo "#include <experimental/filesystem>" >> $(PREFIX)/include/c++/v1/filesystem
+	echo "namespace std {" >> $(PREFIX)/include/c++/v1/filesystem
+	echo "  namespace filesystem = experimental::filesystem;" >> $(PREFIX)/include/c++/v1/filesystem
+	echo "}" >> $(PREFIX)/include/c++/v1/filesystem
 
 wasm:
 	cp wasm.sh $(PREFIX)/bin/wasm
@@ -208,4 +218,4 @@ docs/main.bin: docs/main.syms docs/main.o
 clean:
 	rm -f docs/main.o
 
-.PHONY: llvm wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions docs clean
+.PHONY: llvm filesystem wasm wasm.syms musl compiler-rt libcxxabi libcxx permissions docs clean
