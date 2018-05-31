@@ -1,17 +1,11 @@
 MAKEFLAGS += --no-print-directory
 
-REV	?=
-TAG	?= trunk
-URL	?= https://llvm.org/svn/llvm-project
+URL	?= https://github.com/llvm-project/llvm-project-20170507
 PREFIX	?= /opt/llvm
 SHARED	?= OFF
 STATIC	?= ON
 WASM	?= ON
 JOBS	?= 4
-
-ifeq ($(REV),)
-REV	!= svn info -r HEAD $(URL)/llvm/$(TAG) | grep Revision: | cut -c11-
-endif
 
 ifeq ($(WASM),ON)
 all:
@@ -50,23 +44,17 @@ all:
 endif
 
 src:
-	svn co -r "$(REV)" $(URL)/llvm/$(TAG) $@
-	svn co -r "$(REV)" $(URL)/cfe/$(TAG) $@/tools/clang
-	svn co -r "$(REV)" $(URL)/clang-tools-extra/$(TAG) $@/tools/clang/tools/extra
-	svn co -r "$(REV)" $(URL)/libcxx/$(TAG) $@/projects/libcxx
-	svn co -r "$(REV)" $(URL)/libcxxabi/$(TAG) $@/projects/libcxxabi
-	svn co -r "$(REV)" $(URL)/compiler-rt/$(TAG) $@/projects/compiler-rt
-	svn co -r "$(REV)" $(URL)/libunwind/$(TAG) $@/projects/libunwind
-	svn co -r "$(REV)" $(URL)/lld/$(TAG) $@/projects/lld
-	git clone -b wasm-prototype-1 https://github.com/jfbastien/musl $@/projects/musl
-	cd $@/projects/musl && git apply < $(PWD)/musl.patch
+	git clone --depth 1 --no-checkout $(URL) src
+	mkdir -p src/.git/info && cp checkout src/.git/info/sparse-checkout
+	cd src && git config core.sparsecheckout true && git checkout master
+	git clone -b wasm-prototype-1 https://github.com/jfbastien/musl src/musl
+	cd src/musl && git apply < $(PWD)/musl.patch
+	rm -rf src/.git
 
-build:
-	mkdir $@
-
-llvm: build src
-	rm -rf build/llvm; mkdir build/llvm && cd build/llvm && \
+llvm: src
+	rm -rf build/llvm; mkdir -p build/llvm && cd build/llvm && \
 	  cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
+	    -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;libcxx;libcxxabi;compiler-rt;libunwind;lld" \
 	    -DCMAKE_INSTALL_PREFIX="$(PREFIX)" \
 	    -DLLVM_TARGETS_TO_BUILD="AArch64;ARM;X86;WebAssembly" \
 	    -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" \
@@ -92,7 +80,7 @@ llvm: build src
 	    -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=ON \
 	    -DLIBCXX_INSTALL_EXPERIMENTAL_LIBRARY=ON \
 	    -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
-	    ../../src && \
+	    ../../src/llvm && \
 	  cmake --build . --target install -- -j$(JOBS)
 
 filesystem:
@@ -116,15 +104,15 @@ wasm:
 wasm.syms:
 	cp wasm.syms $(PREFIX)/wasm.syms
 
-musl: build src
-	rm -rf build/musl; mkdir build/musl && cd build/musl && \
+musl: src
+	rm -rf build/musl; mkdir -p build/musl && cd build/musl && \
 	  CROSS_COMPILE="$(PREFIX)/bin/wasm-" CFLAGS="-Wno-everything" \
-	  ../../src/projects/musl/configure --prefix=$(PREFIX)/wasm \
+	  ../../src/musl/configure --prefix=$(PREFIX)/wasm \
 	    --disable-shared --enable-optimize=size && \
 	  make all install -j$(JOBS)
 
-compiler-rt: build src
-	rm -rf build/compiler-rt; mkdir build/compiler-rt && cd build/compiler-rt && \
+compiler-rt: src
+	rm -rf build/compiler-rt; mkdir -p build/compiler-rt && cd build/compiler-rt && \
 	  LDFLAGS="-lc -nodefaultlibs -nostdlib++ -fuse-ld=lld" \
 	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
@@ -134,6 +122,8 @@ compiler-rt: build src
 	    -DCMAKE_NM="$(PREFIX)/bin/llvm-nm" \
 	    -DCMAKE_AR="$(PREFIX)/bin/llvm-ar" \
 	    -DCMAKE_SYSTEM_NAME="Linux" \
+	    -DCOMPILER_RT_BUILD_BUILTINS=OFF \
+	    -DCOMPILER_RT_SANITIZERS_TO_BUILD="" \
 	    -DCOMPILER_RT_DEFAULT_TARGET_TRIPLE="wasm32-unknown-unknown-wasm" \
 	    -DCOMPILER_RT_BUILD_BUILTINS=ON \
 	    -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
@@ -143,13 +133,13 @@ compiler-rt: build src
 	    -DCOMPILER_RT_BAREMETAL_BUILD=ON \
 	    -DCOMPILER_RT_EXCLUDE_ATOMIC_BUILTIN=ON \
 	    -DCAN_TARGET_wasm32=ON \
-	    ../../src/projects/compiler-rt && \
+	    ../../src/compiler-rt && \
 	  cmake --build . --target install -- -j$(JOBS) && \
 	  cd $(PREFIX)/wasm/lib && ln -s linux/libclang_rt.builtins-wasm32.a
   
-libcxxabi: build src
-	rm -rf build/libcxxabi; mkdir build/libcxxabi && cd build/libcxxabi && \
-	  CXXFLAGS="-I $(PWD)/src/projects/libunwind/include" LDFLAGS="-nostdlib++ -fuse-ld=lld" \
+libcxxabi: src
+	rm -rf build/libcxxabi; mkdir -p build/libcxxabi && cd build/libcxxabi && \
+	  CXXFLAGS="-I $(PWD)/src/libunwind/include" LDFLAGS="-nostdlib++ -fuse-ld=lld" \
 	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
 	    -DCMAKE_CXX_COMPILER="$(PREFIX)/bin/wasm-clang++" \
@@ -170,11 +160,11 @@ libcxxabi: build src
 	    -DLIBCXXABI_SILENT_TERMINATE=ON \
 	    -DLIBCXXABI_BAREMETAL=ON \
 	    -DLLVM_ENABLE_LIBCXX=ON \
-	    ../../src/projects/libcxxabi && \
+	    ../../src/libcxxabi && \
 	  cmake --build . --target install -- -j$(JOBS)
   
-libcxx: build src
-	rm -rf build/libcxx; mkdir build/libcxx && cd build/libcxx && \
+libcxx: src
+	rm -rf build/libcxx; mkdir -p build/libcxx && cd build/libcxx && \
 	  LDFLAGS="-lc -nodefaultlibs -fuse-ld=lld" \
 	  cmake -GNinja -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX="$(PREFIX)/wasm" \
 	    -DCMAKE_C_COMPILER="$(PREFIX)/bin/wasm-clang" \
@@ -183,7 +173,7 @@ libcxx: build src
 	    -DCMAKE_RANLIB="$(PREFIX)/bin/llvm-ranlib" \
 	    -DCMAKE_NM="$(PREFIX)/bin/llvm-nm" \
 	    -DCMAKE_AR="$(PREFIX)/bin/llvm-ar" \
-	    -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$(PWD)/src/projects/libcxxabi/include" \
+	    -DLIBCXX_CXX_ABI_INCLUDE_PATHS="$(PWD)/src/libcxxabi/include" \
 	    -DLIBCXX_CXX_ABI="libcxxabi" \
 	    -DLIBCXX_ENABLE_ASSERTIONS=OFF \
 	    -DLIBCXX_ENABLE_EXCEPTIONS=OFF \
@@ -192,8 +182,10 @@ libcxx: build src
 	    -DLIBCXX_ENABLE_FILESYSTEM=ON \
 	    -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=ON \
 	    -DLIBCXX_ENABLE_MONOTONIC_CLOCK=OFF \
-	    -DLIBCXX_ENABLE_THREADS=OFF \
 	    -DLIBCXX_ENABLE_STDIN=OFF \
+	    -DLIBCXX_ENABLE_STDOUT=OFF \
+	    -DLIBCXX_ENABLE_THREADS=OFF \
+	    -DLIBCXX_ENABLE_RTTI=OFF \
 	    -DLIBCXX_INSTALL_EXPERIMENTAL_LIBRARY=ON \
 	    -DLIBCXX_INCLUDE_BENCHMARKS=OFF \
 	    -DLIBCXX_INCLUDE_DOCS=OFF \
@@ -201,19 +193,19 @@ libcxx: build src
 	    -DLIBCXX_HAS_ATOMIC_LIB=OFF \
 	    -DLIBCXX_HAS_MUSL_LIBC=ON \
 	    -DLIBCXX_USE_COMPILER_RT=ON \
-	    ../../src/projects/libcxx && \
+	    ../../src/libcxx && \
 	  cmake --build . --target install -- -j$(JOBS)
 
 permissions:
 	find $(PREFIX) -type d -exec chmod 0755 '{}' ';'
 
-docs: docs/main.bin
+docs: docs/main
 
 docs/main.o: docs/main.cpp
 	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Os -c -o $@ docs/main.cpp
 
-docs/main.bin: docs/main.syms docs/main.o
-	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Wl,--allow-undefined-file=docs/main.syms -v -o $@ docs/main.o
+docs/main: docs/main.syms docs/main.o
+	$(PREFIX)/bin/wasm-clang++ -std=c++2a -Wl,--allow-undefined-file=docs/main.syms -o $@ docs/main.o
 
 clean:
 	rm -f docs/main.o

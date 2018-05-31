@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <script>
-    let main = fetch("main.bin");
+    let main = fetch("main");
   </script>
 </head>
 <body>
@@ -13,7 +13,7 @@
       this.ec = ec;
     }
 
-    const page_size = (64 * 1024);
+    const page = (64 * 1024);
 
     const heap = {
       data: null,
@@ -46,35 +46,23 @@
     };
 
     heap.set(new WebAssembly.Memory({
-      initial: heap.size / page_size,
-      maximum: heap.size / page_size
+      initial: heap.size / page,
+      maximum: heap.size / page
     }));
-
-    function stdout(str, style) {
-      let span = document.createElement("span");
-      let log = document.getElementById("log");
-      if (typeof style === "string") {
-        console.log("%c" + str, style);
-        span.style = style;
-      } else {
-        console.log(str);
-      }
-      span.innerText = str;
-      log.appendChild(span);
-      log.appendChild(document.createElement("br"));
-    }
-
-    function stderr(str) {
-      stdout(str, "color: #d33;");
-    }
 
     const env = {
       memory: heap.memory,
-      /* int test() */ test: () => {
-        return 1;
+      /* void sys_log(const char* str, int size) */ sys_log: (str, size) => {
+        str = heap.string(str, size);
+        console.log(str);
+        let span = document.createElement("span");
+        span.innerText = str;
+        let log = document.getElementById("log");
+        log.appendChild(span);
+        log.appendChild(document.createElement("br"));
       },
       /* int ice::test() */ _ZN3ice4testEv: () => {
-        return 2;
+        return 1;
       }
     };
 
@@ -84,34 +72,13 @@
       },
       /* brk */ 45: (addr) => {
         if (addr > heap.size) {
-          heap.memory.grow(Math.ceil((addr - heap.size) / page_size));
+          heap.memory.grow(Math.ceil((addr - heap.size) / page));
           heap.set(heap.memory);
         }
         if (addr != 0) {
           heap.end = addr;
         }
         return heap.end;
-      },
-      /* ioctl */ 54: () => {
-        return -1;
-      },
-      /* writev */ 146: (fd, iov, iovcnt) => {
-        let ret = 0;
-        let str = "";
-        let iov32 = iov / 4;
-        for (let i = 0; i < iovcnt; i++) {
-          let ptr = heap.uint32[iov32++];
-          let len = heap.uint32[iov32++];
-          if (len > 0) {
-            str += heap.string(ptr, len);
-            ret += len;
-          }
-        }
-        if (str.length > 0 && str[str.length - 1] === '\n') {
-          str = str.slice(0, str.length - 1);
-        }
-        (fd === 2 ? stderr : stdout)(str);
-        return ret;
       },
       /* exit_group */ 252: (ec) => {
         throw new Exit(ec);
@@ -122,7 +89,7 @@
       if (n in sys) {
         return sys[n](a, b, c, d, e, f);
       }
-      console.warn("syscall:", n, a, b, c, d, e, f);
+      console.log("%csyscall:", "color:#d33;", n, a, b, c, d, e, f);
       return -1;
     }
 
@@ -138,12 +105,11 @@
         main = null;
         heap.set(init.instance.exports.memory);
         heap.end = init.instance.exports.__heap_base;
-	console.log(init.instance.exports.__wasm_call_ctors);
         init.instance.exports._start();
       }
       catch (e) {
         if (e instanceof Exit) {
-          stdout("exit: " + e.ec, "color: #888; font-weight: bold;");
+          console.log("%cexit: " + e.ec, "color:#888;font-weight:bold;");
         } else {
           throw e;
         }

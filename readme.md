@@ -15,17 +15,10 @@ Download this repository.
 git clone https://github.com/qis/llvm && cd llvm
 ```
 
-Install LLVM with **one** of the following commands. (WebAssembly is only supported in LLVM trunk.)
+Install LLVM with the following command.
 
 ```sh
-# Release (disables WebAssembly support).
-# make TAG=tags/RELEASE_600/final PREFIX=/opt/llvm-6.0.0 SHARED=ON STATIC=OFF WASM=OFF JOBS=4
-
-# Trunk revision.
-# make REV={2018-05-03} PREFIX=/opt/llvm JOBS=4
-
-# Trunk head.
-# make PREFIX=/opt/llvm JOBS=4
+make PREFIX=/opt/llvm SHARED=OFF STATIC=ON WASM=ON JOBS=4
 ```
 
 Configure shared libraries in case llvm was installed with the `SHARED=ON` option.

@@ -1,27 +1,27 @@
-#include <iostream>
-#include <sstream>
+#include <memory>
 #include <cstdio>
 
-extern "C" int test();
+extern "C" void sys_log(const char* str, int size);
 
 namespace ice {
+
+inline void log(const char* str) {
+  sys_log(str, -1);
+}
+
+template <typename... Args>
+inline void log(const char* format, Args&&... args) {
+  const auto size = std::snprintf(nullptr, 0, format, std::forward<Args>(args)...);
+  const auto data = std::make_unique<char[]>(static_cast<std::size_t>(size + 1));
+  std::snprintf(data.get(), static_cast<std::size_t>(size + 1), format, std::forward<Args>(args)...);
+  sys_log(data.get(), size);
+}
 
 int test();
 
 }  // namespace ice
 
 int main() {
-  // Requires projects/libcxx/include/streambuf to declare
-  //   basic_streambuf<_CharT, _Traits>::seekpos(pos_type, ios_base::openmode) and
-  //   basic_streambuf<_CharT, _Traits>::seekoff(off_type, ios_base::seekdir, ios_base::openmode)
-  // as inline, then it crashes at during WebAssembly execution with a memory access violation.
-  //std::cout << "cout test: " << test() << std::endl;
-
-  std::ostringstream oss;
-  oss << "ostringstream test: " << test() << std::endl;
-  std::puts(oss.str().data());
-
-  std::printf("printf test: %d\n", test());
-
-  std::fprintf(stderr, "stderr ice::test: %d\n", ice::test());
+  ice::log("test: [-]");
+  ice::log("test: [%d]", ice::test());
 }
