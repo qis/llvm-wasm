@@ -39,7 +39,7 @@ ldconfig
 ```
 
 ## Example
-A precompiled WebAssembly binary can seen in action [here][example].
+A precompiled WebAssembly binary can be seen in action [here][example].
 
 [libcxx]: https://libcxx.llvm.org/
 [musl]: https://github.com/jfbastien/musl/
